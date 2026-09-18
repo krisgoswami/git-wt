@@ -130,7 +130,8 @@ does everything except jump; for that it offers `git wt path <substring>`, so
 | `wt <substring>` | jump to the worktree whose branch or path matches |
 | `wt new <branch>` | create and initialise a worktree (alias: `create`) |
 | `wt new <branch> --no-install` | …without installing dependencies |
-| `wt clean [--whatif]` | remove worktrees whose work has landed |
+| `wt clean` | remove worktrees whose work has landed |
+| `wt clean --whatif` | preview it: print what would be removed, change nothing (alias: `--dry-run`) |
 | `wt clean --force` | also remove dirty ones, discarding the changes |
 | `wt clean --days N` | how recent a `[gone]` branch must be (default 7) |
 | `wt root` | jump back to the main checkout |
