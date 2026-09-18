@@ -25,7 +25,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --no-install) NO_INSTALL=true; shift ;;
     -h | --help)
-      echo "Usage: git wt new <branch> [--no-install]" >&2
+      echo "Usage: wt new <branch> [--no-install]" >&2
       exit 0
       ;;
     --)
@@ -46,7 +46,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$BRANCH" ]; then
-  echo "Usage: git wt new <branch> [--no-install]" >&2
+  echo "Usage: wt new <branch> [--no-install]" >&2
   exit 1
 fi
 

@@ -29,8 +29,8 @@ wt_realpath() {
   esac
 }
 
-# Directory holding a script, with symlinks resolved — install.sh may symlink
-# bin/git-wt onto PATH, and the lib/ it must find is next to the real file.
+# Directory holding a script, with symlinks resolved — the clone itself may sit
+# behind a symlink, and the lib/ a script must find is next to the real file.
 wt_script_dir() {
   dirname "$(wt_realpath "$1")"
 }

@@ -88,21 +88,26 @@ branches. `wt clean` leaves them alone; remove those by hand.
 
 ## Install
 
+There is nothing to put on your PATH. `wt` is a shell function, so installing it
+means sourcing one file from your rc — that is the whole install.
+
 ```bash
-git clone https://github.com/<you>/git-wt ~/.local/share/git-wt
+git clone https://github.com/krisgoswami/git-wt ~/.local/share/git-wt
 ~/.local/share/git-wt/install.sh
 ```
 
-It symlinks `bin/git-wt` into `~/.local/bin` (so `git wt …` works) and prints
-the one line to add to your rc file. It does not edit your rc file unless you
-pass `--write-rc` — a tool that silently rewrites your shell config is one you
-cannot audit.
+The installer works out which rc file your shell actually reads and prints the
+line to add. It does not edit your rc file unless you pass `--write-rc` — a tool
+that silently rewrites your shell config is one you cannot audit.
 
 ```bash
 . "$HOME/.local/share/git-wt/wt.sh"
 ```
 
 Open a new shell, and `wt help` should answer.
+
+Clone it somewhere permanent: the rc line points at the clone, so moving or
+deleting it breaks `wt` in every new shell.
 
 **Which rc file?** The installer works it out, but the rule is worth knowing,
 because getting it wrong looks exactly like the tool being broken:
@@ -116,14 +121,24 @@ because getting it wrong looks exactly like the tool being broken:
 Requires bash or zsh, and git 2.17+. No other dependencies — no Python, no Node,
 no package manager. It is shell scripts and git.
 
-### Why `wt` is a shell function and `git wt` is a command
+### Why `wt` is a shell function
 
 Jumping between worktrees has to change the **calling** shell's directory, and a
-child process cannot do that to its parent. So `wt` is a sourced function.
+child process cannot do that to its parent. No script can do it, however it is
+installed. So `wt` is a sourced function, and sourcing it is deliberate: this is
+a personal tool that lives in your shell, not a binary that appears on PATH for
+everything on the machine.
 
-`git wt` is a real executable, found by git's `git-<name>` subcommand lookup. It
-does everything except jump; for that it offers `git wt path <substring>`, so
-`cd "$(git wt path checkout)"` works from a script.
+The consequence worth knowing: a function only exists in a shell that sourced
+it. Non-interactive bash does not read `~/.bashrc`, and a script with a shebang
+reads no rc file at all, so `wt` is not available inside scripts, Makefiles, or
+CI. If you need worktree creation there, call the underlying scripts directly —
+they are executable and take the same arguments:
+
+```bash
+~/.local/share/git-wt/lib/make-worktree.sh feat/checkout
+~/.local/share/git-wt/lib/cleanup-worktrees.sh --whatif
+```
 
 ## Commands
 

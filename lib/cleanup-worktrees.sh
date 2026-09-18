@@ -31,11 +31,11 @@ while [ $# -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      echo "Usage: git wt clean [--whatif] [--force] [--days N]" >&2
+      echo "Usage: wt clean [--whatif] [--force] [--days N]" >&2
       exit 0
       ;;
     *)
-      echo "Usage: git wt clean [--whatif] [--force] [--days N]" >&2
+      echo "Usage: wt clean [--whatif] [--force] [--days N]" >&2
       exit 1
       ;;
   esac
