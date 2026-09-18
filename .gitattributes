@@ -1,0 +1,13 @@
+# Shell scripts must check out with LF endings, everywhere.
+#
+# Git for Windows defaults to core.autocrlf=true, which rewrites LF to CRLF on
+# checkout. A .sh file that lands with CRLF fails at the shebang before a single
+# line of logic runs:  bad interpreter: /usr/bin/env bash^M
+#
+# This matters even though Windows is not a supported target: a WSL user whose
+# repo sits on an NTFS mount, or anyone cloning on Windows to read the source,
+# hits it otherwise.
+* text=auto eol=lf
+
+# Belt and braces for the files that would actually break.
+*.sh text eol=lf

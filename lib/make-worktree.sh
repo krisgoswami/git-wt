@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Locate this script's own directory with symlinks resolved, without GNU
-# readlink — install.sh may symlink the entry points onto PATH.
+# readlink — the clone itself may sit behind a symlink.
 _wt_self=$0
 while [ -L "$_wt_self" ]; do
   _wt_link=$(readlink "$_wt_self")

@@ -2,26 +2,16 @@
 
 Worktrees without the setup tax — so you can run several coding agents at once.
 
-One checkout, `git checkout` between branches, one feature at a time: the
-workflow nearly every repo assumes. It also caps you at one coding agent at a
-time.
+One checkout means one branch at a time, which caps you at one agent at a time.
+Git worktrees lift the cap: several branches checked out at once, in separate
+directories, sharing one clone's objects. One agent per directory.
 
-Git worktrees lift the cap. Several branches checked out at once, in separate
-directories, sharing a single clone's objects and history. One agent per
-directory, all working at the same time.
+With Claude Code the separation runs deeper than the files — a session belongs to
+its directory, so every worktree keeps its own conversation instead of piling
+six features into one history.
 
-With Claude Code the separation runs deeper than the files. A session belongs to
-its directory, so every worktree keeps its own conversation. Swap branches inside
-one checkout and every feature's context piles into the same history — worktrees
-keep them apart. It's the difference between an agent that has been working on
-your feature and one that has been working on all six.
-
-What's left is friction. A new worktree has no `.env`, no installed
-dependencies, no local config, and it litters `git status` in a repo you might
-not even own. Multiply that by every branch you start and the overhead eats the
-gain.
-
-This removes it.
+What's left is friction: a new worktree has no `.env`, no dependencies, and it
+litters `git status`. This removes it.
 
 ```bash
 wt new feat/checkout     # create it, install deps, carry over .env
@@ -30,110 +20,82 @@ wt clean --whatif        # see which ones have landed
 wt clean                 # remove them, and the branches they pinned
 ```
 
-Most worktree helpers are a thin wrapper around `git worktree add`. The three
-things this does differently are the reason it exists.
+Most worktree helpers wrap `git worktree add`. Three things here are different.
 
-## 1. It leaves no trace in the repo
+**1. It leaves no trace in the repo.** Worktree paths are excluded through
+`.git/info/exclude`, never `.gitignore` — one write covers every worktree of the
+clone, it is never committed, and `git status` stays clean. Safe in a team repo,
+or one you have no write access to.
 
-Worktree paths are excluded through **`.git/info/exclude`**, never `.gitignore`.
-`info/exclude` is read from the shared common git-dir, so one write covers every
-worktree of the clone, it is never committed, and `git status` stays clean.
+**2. It knows two different ways work "lands".** `wt clean` removes a worktree
+when either signal fires, because neither is enough alone:
 
-You can use this in a team repo, or a repo you have no write access to, without
-producing a single tracked change you would have to remember to leave out of a
-commit.
+- **`[gone]`** — the remote dropped the branch. Silent on teams that never push
+  tracking branches, and it also fires for *closed* PRs whose commits never
+  landed, so it is gated behind `--days` (default 7) and deleted with
+  `git branch -d`, which refuses on unmerged commits.
+- **Ancestry** — `git merge-base --is-ancestor`, proof the commits are in the
+  default branch. No age window needed.
 
-## 2. It knows two different ways work "lands"
+Tools keying off `[gone]` alone do nothing in a repo that keeps merged branches.
+*Known limitation:* a **squash merge** defeats the ancestry check and never goes
+`[gone]`. There is no reliable signal for those; `wt clean` leaves them alone.
 
-`wt clean` removes a worktree when either signal fires, because neither one is
-enough on its own:
+**3. It will not eat your uncommitted work.**
 
-- **`[gone]`** — the remote dropped the branch. This only ever appears if the
-  branch had an upstream, so on a team that never pushes tracking branches it is
-  permanently silent. It also fires for a **closed or rejected** PR whose commits
-  never landed, so it is gated behind a `--days` window (default 7) and the
-  branch is deleted with `git branch -d`, which refuses on unmerged commits.
-- **Ancestry** — `git merge-base --is-ancestor <branch> origin/<default>`, which
-  is proof the commits are in the default branch. No age window needed.
-
-Tools that key off `[gone]` alone do nothing at all in a repo whose team keeps
-branches after merge, and worktrees pile up silently.
-
-**Known limitation:** a **squash merge** defeats the ancestry check, because it
-rewrites the commits into a new SHA, and such a branch never goes `[gone]` if
-the team keeps branches. There is no reliable automatic signal for squash-merged
-branches. `wt clean` leaves them alone; remove those by hand.
-
-## 3. It will not eat your uncommitted work
-
-- **`wt clean --whatif` previews the whole run and changes nothing.** Every
-  removal and branch deletion is printed as `would: …`, so you decide against
-  a list rather than against a summary. It is the flag to reach for first.
-- `git worktree remove` is never `--force` by default. Dirty worktrees are kept
-  and reported; `--force` is opt-in. Untracked files count as dirty — a stray
-  `.env` or a build directory will stop a removal, and that is deliberate.
-- New branches are created with **`--no-track`**. Branching off a remote-tracking
-  ref otherwise makes git set it as the new branch's upstream, and with
-  `push.default=upstream` a bare `git push` resolves to `<your-branch> -> main`:
-  your commits, delivered straight onto the shared default branch. With
-  `--no-track` there is no upstream, `git push` refuses, and it suggests
-  `--set-upstream`, which creates a *new* remote branch.
-- Branches are deleted with `-d`, not `-D`, wherever the merge state is not
-  already proven.
-- **The tool never touches the remote.** There is no `git push` anywhere in it.
-  The only remote interaction is `git fetch --prune origin`, which is read-only
-  on the remote. Deleting a remote branch stays a deliberate act by you.
-
----
+- `wt clean --whatif` previews the whole run as `would: …` lines and changes
+  nothing. Reach for it first.
+- Never `--force` by default. Dirty worktrees are kept and reported, and
+  untracked files count as dirty — deliberately.
+- New branches use `--no-track`, so a bare `git push` can't resolve to
+  `<your-branch> -> main` under `push.default=upstream` and deliver your commits
+  onto the shared default branch.
+- Branches are deleted with `-d`, not `-D`, wherever merge state isn't proven.
+- **It never touches the remote.** The only remote call is `git fetch --prune`.
 
 ## Install
 
-There is nothing to put on your PATH. `wt` is a shell function, so installing it
-means sourcing one file from your rc — that is the whole install.
+Nothing goes on your PATH. `wt` is a shell function, so installing it means
+sourcing one file from your rc — that is the whole install.
 
 ```bash
-git clone https://github.com/krisgoswami/git-wt ~/.local/share/git-wt
-~/.local/share/git-wt/install.sh
+git clone https://github.com/krisgoswami/git-wt.git ~/.local/share/git-wt
 ```
 
-The installer works out which rc file your shell actually reads and prints the
-line to add. It does not edit your rc file unless you pass `--write-rc` — a tool
-that silently rewrites your shell config is one you cannot audit.
+Then add this line to your rc file, open a new shell, and `wt help` should
+answer:
 
 ```bash
 . "$HOME/.local/share/git-wt/wt.sh"
 ```
 
-Open a new shell, and `wt help` should answer.
+Clone it somewhere permanent — the rc line points at the clone. Running
+`install.sh` is optional: it works out which rc file your shell actually reads
+and prints the line, or appends it with `--write-rc`.
 
-Clone it somewhere permanent: the rc line points at the clone, so moving or
-deleting it breaks `wt` in every new shell.
-
-**Which rc file?** The installer works it out, but the rule is worth knowing,
-because getting it wrong looks exactly like the tool being broken:
+**Which rc file?** Getting it wrong looks exactly like the tool being broken:
 
 | Shell | File |
 |---|---|
-| zsh | `~/.zshrc` — read by every interactive shell, on any OS |
+| zsh | `~/.zshrc` — every interactive shell, any OS |
 | bash on Linux | `~/.bashrc` |
-| bash on macOS | `~/.bash_profile` — Terminal.app opens a **login** shell for every window, and a login shell does not read `~/.bashrc` |
+| bash on macOS | `~/.bash_profile` — Terminal.app opens a **login** shell per window, and login shells skip `~/.bashrc` |
 
-Requires bash or zsh, and git 2.17+. No other dependencies — no Python, no Node,
-no package manager. It is shell scripts and git.
+Requires bash or zsh and git 2.17+. No other dependencies.
 
-### Why `wt` is a shell function
+**Not for native Windows.** `wt` is a bash/zsh function, so PowerShell and CMD
+cannot run it at all. On Windows use **WSL**, where this works unchanged — WSL is
+Linux, and it is the only Windows setup tested. Keep the repo on the WSL
+filesystem (`~/code/...`), not `/mnt/c/...`, where git and installs crawl.
 
-Jumping between worktrees has to change the **calling** shell's directory, and a
-child process cannot do that to its parent. No script can do it, however it is
-installed. So `wt` is a sourced function, and sourcing it is deliberate: this is
-a personal tool that lives in your shell, not a binary that appears on PATH for
-everything on the machine.
+This is a limit of the wrapper, not of worktrees. `git worktree add|list|remove`
+is native git and works fine in PowerShell — you just do the jumping and the
+`.env` copying yourself.
 
-The consequence worth knowing: a function only exists in a shell that sourced
-it. Non-interactive bash does not read `~/.bashrc`, and a script with a shebang
-reads no rc file at all, so `wt` is not available inside scripts, Makefiles, or
-CI. If you need worktree creation there, call the underlying scripts directly —
-they are executable and take the same arguments:
+**Why a shell function?** Jumping worktrees has to change the *calling* shell's
+directory, which no child process can do to its parent. The tradeoff: a function
+only exists in a shell that sourced it, so `wt` is unavailable in scripts and CI.
+For those, call the underlying scripts directly — same arguments:
 
 ```bash
 ~/.local/share/git-wt/lib/make-worktree.sh feat/checkout
@@ -149,48 +111,35 @@ they are executable and take the same arguments:
 | `wt new <branch>` | create and initialise a worktree (alias: `create`) |
 | `wt new <branch> --no-install` | …without installing dependencies |
 | `wt clean` | remove worktrees whose work has landed |
-| `wt clean --whatif` | preview it: print what would be removed, change nothing (alias: `--dry-run`) |
-| `wt clean --force` | also remove dirty ones, discarding the changes |
+| `wt clean --whatif` | preview it, change nothing (alias: `--dry-run`) |
+| `wt clean --force` | also remove dirty ones, discarding changes |
 | `wt clean --days N` | how recent a `[gone]` branch must be (default 7) |
 | `wt root` | jump back to the main checkout |
 | `wt path <substring>` | print a worktree's path without jumping |
 
-An ambiguous jump is not an error: it goes to the first match and prints the
-rest. A detached-HEAD worktree is still reachable by path substring.
+An ambiguous jump goes to the first match and prints the rest. Detached-HEAD
+worktrees are still reachable by path substring.
 
 ## Where worktrees live
 
-One default, auto-detected, and one escape hatch.
-
-| Condition | Worktree path |
+| Condition | Path |
 |---|---|
 | repo has a `.claude/` directory | `<repo>/.claude/worktrees/<branch>` |
 | default | `<repo>/.worktrees/<branch>` |
 | `WT_DIR` set to an absolute path | `<WT_DIR>/<repo-name>/<branch>` |
 
-**Worktrees live inside the repo by default, and the dot prefix is load bearing.**
+Worktrees live inside the repo, and **the dot prefix is load bearing**: hidden
+directories are skipped by ripgrep, pytest's `norecursedirs`, ESLint and most
+watchers. A non-dot directory would give you duplicate search hits and doubled
+test collection in every project.
 
-- **Hidden directories are skipped by most tooling.** Measured: ripgrep skips
-  `.worktrees/` and descends into `worktrees/`. pytest's default
-  `norecursedirs` is `*.egg .* _darcs build CVS dist node_modules venv {arch}`.
-  ESLint and most file watchers follow the same convention. A non-dot directory
-  inside the repo would give you duplicate search hits and doubled test
-  collection in every project.
-- **`includeIf "gitdir:…"` keeps matching.** Per-directory git identity is keyed
-  by path. If your `~/.gitconfig` has an `includeIf gitdir:~/work/` rule setting
-  your work email, a worktree at `~/work/repo/.worktrees/x` still matches it —
-  and one at `~/worktrees/repo/x` silently does not, so you commit with the
-  wrong email and find out in review. **This is the caveat on `WT_DIR`:** if you
-  move worktrees outside the repo, add a matching `includeIf` rule for the new
-  location.
-- `info/exclude` keeps the directory invisible to git without touching the repo.
+**The caveat on `WT_DIR`:** per-directory git identity via `includeIf "gitdir:…"`
+is keyed by path. A worktree at `~/work/repo/.worktrees/x` still matches an
+`includeIf gitdir:~/work/` rule; one at `~/worktrees/repo/x` silently does not,
+so you commit with the wrong email. Move worktrees out, add a matching rule.
 
 `.claude/worktrees/` is auto-detected because that exact path is what Claude
-Code's worktree entry treats as pre-approved. If you use Claude Code you get it
-with no configuration; if you do not, you never see it. The Claude-specific
-exclude entries are only written in that mode.
-
-Override with the environment or with git config:
+Code treats as pre-approved. Override:
 
 ```bash
 export WT_DIR=~/worktrees            # external layout, all repos
@@ -200,15 +149,13 @@ git config wt.layout default         # force <repo>/.worktrees even with .claude
 
 ## What `wt new` does
 
-1. `git fetch origin`, then branches off the **default branch resolved from
-   `origin/HEAD`** — never assumed to be `main`. Many clones have `origin/HEAD`
-   unset, so it falls back to `origin/main`, `origin/master`, `origin/develop`,
-   then warns and tells you to run `git remote set-head origin --auto`.
-2. `git worktree add --no-track -b <branch> <base>` (see above).
-3. Copies local-only files the main checkout has and a fresh worktree cannot:
-   `.env`, `.env.local`, `.env.development.local`, `.envrc`, `.tool-versions`.
-   Never clobbers one that already exists, and never copies a file git tracks.
-   Override the list with `WT_ENV_FILES`.
+1. Fetches, then branches off the default branch **resolved from `origin/HEAD`**
+   — never assumed to be `main`. Falls back to `origin/main`, `master`,
+   `develop`, then warns to run `git remote set-head origin --auto`.
+2. `git worktree add --no-track -b <branch> <base>`.
+3. Copies local-only files a fresh worktree can't have: `.env`, `.env.local`,
+   `.env.development.local`, `.envrc`, `.tool-versions`. Never clobbers an
+   existing file, never copies a tracked one. Override with `WT_ENV_FILES`.
 4. Installs dependencies, detected from lockfiles:
 
    | Ecosystem | Detected from | Runs |
@@ -225,31 +172,25 @@ git config wt.layout default         # force <repo>/.worktrees even with .claude
    | Gradle | `gradlew` | `./gradlew --quiet --no-daemon dependencies` |
    | Maven | `pom.xml` | `mvn -q -B dependency:go-offline` |
 
-   Alternatives within one ecosystem are first-match-wins; ecosystems are
-   independent, so a polyglot repo gets each one. A tool that is not on `PATH`
-   is skipped with a warning, and a failed install never fails the worktree.
-   Skip the whole step with `--no-install` or `WT_NO_INSTALL=true`.
-5. Writes the exclude entries into `.git/info/exclude`.
-6. Runs the per-repo hook, if you have one. See [`hooks/README.md`](hooks/README.md).
+   First match wins within an ecosystem; a polyglot repo gets each one. A tool
+   not on `PATH` is skipped with a warning, and a failed install never fails the
+   worktree. Skip with `--no-install` or `WT_NO_INSTALL=true`.
+5. Writes the exclude entries, then runs the per-repo hook if you have one — see
+   [`hooks/README.md`](hooks/README.md).
 
-If `git worktree add` fails it prunes and rolls back — deleting the branch only
-if this run created it, never a branch that already existed.
+If `git worktree add` fails it prunes and rolls back, deleting the branch only if
+this run created it.
 
-## What `wt clean` does not do
+## What `wt clean` skips
 
-- It never touches the remote.
-- It skips the worktree you are standing in. (Removing the directory your shell
-  is sitting in leaves it with a deleted cwd, and every later command fails with
-  `getcwd: cannot access parent directories`.)
-- It skips the main checkout and the default branch.
-- It skips detached-HEAD worktrees.
-- It refuses to run at all if it cannot resolve a default branch, rather than
-  guessing `main` and deleting against the wrong baseline.
+The worktree you are standing in (removing it leaves your shell with a deleted
+cwd), the main checkout, the default branch, and detached-HEAD worktrees. It
+refuses to run at all if it cannot resolve a default branch, rather than guessing
+`main` and deleting against the wrong baseline.
 
-Removing a worktree does **not** delete its branch, and a branch cannot be
-deleted while a worktree holds it (`error: cannot delete branch 'X' used by
-worktree at …`). So a stale worktree pins a stale branch, and `wt clean` handles
-the pair together.
+Removing a worktree does not delete its branch, and a branch can't be deleted
+while a worktree holds it — so a stale worktree pins a stale branch, and
+`wt clean` handles the pair together.
 
 ## Configuration
 
@@ -257,7 +198,7 @@ the pair together.
 |---|---|
 | `WT_DIR` | absolute path; switches to the external layout |
 | `WT_LAYOUT` | `claude` \| `default` \| `external` — force a layout |
-| `WT_ENV_FILES` | space-separated list of local-only files to carry over |
+| `WT_ENV_FILES` | space-separated local-only files to carry over |
 | `WT_NO_INSTALL` | `true` to skip dependency installation |
 | `WT_HOOKS_DIR` | where per-repo hooks live (default `~/.config/git-wt/hooks`) |
 | `WT_GONE_DAYS` | default for `clean --days` |
