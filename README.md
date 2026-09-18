@@ -66,6 +66,9 @@ branches. `wt clean` leaves them alone; remove those by hand.
 
 ## 3. It will not eat your uncommitted work
 
+- **`wt clean --whatif` previews the whole run and changes nothing.** Every
+  removal and branch deletion is printed as `would: …`, so you decide against
+  a list rather than against a summary. It is the flag to reach for first.
 - `git worktree remove` is never `--force` by default. Dirty worktrees are kept
   and reported; `--force` is opt-in. Untracked files count as dirty — a stray
   `.env` or a build directory will stop a removal, and that is deliberate.
