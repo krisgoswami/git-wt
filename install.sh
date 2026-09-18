@@ -52,10 +52,21 @@ esac
 
 SOURCE_LINE=". \"$WT_HOME/wt.sh\""
 
+# Which rc file actually gets read is not just a shell question, it is an OS
+# question. zsh reads .zshrc for every interactive shell, so that one is easy.
+# bash reads .bashrc for interactive non-login shells and .bash_profile for
+# login shells — and macOS Terminal opens a LOGIN shell for every new window,
+# so .bashrc there is a file that is never read.
 if [ -z "$RC_FILE" ]; then
   case "${SHELL:-}" in
     *zsh) RC_FILE=${ZDOTDIR:-$HOME}/.zshrc ;;
-    *) RC_FILE=$HOME/.bashrc ;;
+    *)
+      if [ "$(uname -s 2> /dev/null || echo unknown)" = Darwin ]; then
+        RC_FILE=$HOME/.bash_profile
+      else
+        RC_FILE=$HOME/.bashrc
+      fi
+      ;;
   esac
 fi
 

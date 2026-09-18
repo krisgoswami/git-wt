@@ -78,7 +78,19 @@ cannot audit.
 . "$HOME/.local/share/git-wt/wt.sh"
 ```
 
-Requires bash or zsh, and git 2.17+. No other dependencies.
+Open a new shell, and `wt help` should answer.
+
+**Which rc file?** The installer works it out, but the rule is worth knowing,
+because getting it wrong looks exactly like the tool being broken:
+
+| Shell | File |
+|---|---|
+| zsh | `~/.zshrc` — read by every interactive shell, on any OS |
+| bash on Linux | `~/.bashrc` |
+| bash on macOS | `~/.bash_profile` — Terminal.app opens a **login** shell for every window, and a login shell does not read `~/.bashrc` |
+
+Requires bash or zsh, and git 2.17+. No other dependencies — no Python, no Node,
+no package manager. It is shell scripts and git.
 
 ### Why `wt` is a shell function and `git wt` is a command
 
