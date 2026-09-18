@@ -1,11 +1,32 @@
 # git-wt
 
-A git worktree helper that works in repos you do not own.
+Worktrees without the setup tax — so you can run several coding agents at once.
 
-```
-wt new feat/checkout     # create a worktree, install deps, carry over .env
+One checkout, `git checkout` between branches, one feature at a time: the
+workflow nearly every repo assumes. It also caps you at one coding agent at a
+time.
+
+Git worktrees lift the cap. Several branches checked out at once, in separate
+directories, sharing a single clone's objects and history. One agent per
+directory, all working at the same time.
+
+With Claude Code the separation runs deeper than the files. A session belongs to
+its directory, so every worktree keeps its own conversation. Swap branches inside
+one checkout and every feature's context piles into the same history — worktrees
+keep them apart. It's the difference between an agent that has been working on
+your feature and one that has been working on all six.
+
+What's left is friction. A new worktree has no `.env`, no installed
+dependencies, no local config, and it litters `git status` in a repo you might
+not even own. Multiply that by every branch you start and the overhead eats the
+gain.
+
+This removes it.
+
+```bash
+wt new feat/checkout     # create it, install deps, carry over .env
 wt checkout              # jump into it
-wt clean --whatif        # see which worktrees have landed
+wt clean --whatif        # see which ones have landed
 wt clean                 # remove them, and the branches they pinned
 ```
 
