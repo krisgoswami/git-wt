@@ -1,0 +1,3 @@
+# The build plan carries local environment details (work repo paths, machine
+# layout) and is not part of the published tool.
+git-wt-plan.md
