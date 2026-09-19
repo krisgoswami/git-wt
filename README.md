@@ -155,6 +155,34 @@ underlying scripts directly — same arguments:
 ~/.local/share/git-wt/lib/cleanup-worktrees.sh --whatif
 ```
 
+## Updating
+
+```bash
+wt update
+```
+
+That is the whole update: it pulls git-wt's own clone and reloads the `wt`
+function in the shell you ran it from. It works from anywhere, including outside
+a git repo, because it acts on the clone rather than your current directory.
+
+**Other open terminals keep the old version.** The `wt` function is copied into
+a shell's memory when that shell starts, so changing the files on disk does not
+reach back into a terminal that is already running. `wt update` fixes the shell
+you are in; for the rest, either run `source ~/.bashrc` (or your file from
+Step 2) in each, or just open a new terminal. `wt new` and `wt clean` are the
+exception — they run scripts from `lib/` fresh each time, so they update
+immediately.
+
+If you have edited your own clone, the pull refuses rather than merging, and
+tells you to sort it out by hand — your changes are never overwritten.
+
+Doing it manually is the same two steps:
+
+```bash
+git -C ~/.local/share/git-wt pull
+source ~/.bashrc
+```
+
 ## Commands
 
 | | |
@@ -169,6 +197,7 @@ underlying scripts directly — same arguments:
 | `wt clean --days N` | how recent a `[gone]` branch must be (default 7) |
 | `wt root` | jump back to the main checkout |
 | `wt path <substring>` | print a worktree's path without jumping |
+| `wt update` | pull the latest git-wt and reload it in this shell |
 
 An ambiguous jump goes to the first match and prints the rest. Detached-HEAD
 worktrees are still reachable by path substring.

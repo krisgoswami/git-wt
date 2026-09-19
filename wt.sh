@@ -44,6 +44,7 @@ wt clean --force                also remove dirty ones, discarding changes
 wt clean --days N               how recent a [gone] branch must be (default 7)
 wt root                         jump back to the main checkout
 wt path <substring>             print a worktree's path without jumping
+wt update                       pull the latest git-wt and reload it
 wt help                         this
 
 An ambiguous jump goes to the first match and prints the rest.
@@ -53,6 +54,21 @@ Layout (auto-detected, override with WT_DIR or `git config wt.dir`):
   <repo>/.worktrees/<branch>          otherwise
   <WT_DIR>/<repo>/<branch>            when WT_DIR is an absolute path
 HELP
+      return 0
+      ;;
+    update)
+      # Deliberately above the repo check: this updates git-wt's own clone, so
+      # it must work from anywhere, including outside a repo.
+      if ! git -C "$WT_HOME" pull --ff-only; then
+        echo "wt: update failed. Resolve it by hand in $WT_HOME" >&2
+        return 1
+      fi
+      # Re-source to replace this function in the CURRENT shell. Without it the
+      # shell keeps running the version it loaded at startup.
+      . "$WT_HOME/wt.sh"
+      echo "wt updated to $(git -C "$WT_HOME" log -1 --format='%h %s')"
+      echo "This shell is up to date. Other open terminals keep the old version"
+      echo "until you run 'source <your rc file>' in them, or open a new one."
       return 0
       ;;
   esac
