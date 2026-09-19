@@ -55,47 +55,100 @@ Tools keying off `[gone]` alone do nothing in a repo that keeps merged branches.
 
 ## Install
 
-Nothing goes on your PATH. `wt` is a shell function, so installing it means
-sourcing one file from your rc — that is the whole install.
+Requires bash or zsh and git 2.17+. Nothing else — no Python, no Node, no
+package manager.
+
+There is no installer and nothing goes on your PATH. `wt` is a shell *function*,
+which means it has to be loaded into each shell you open. That is what these
+steps set up, once.
+
+### Step 1 — download the files
 
 ```bash
 git clone https://github.com/krisgoswami/git-wt.git ~/.local/share/git-wt
 ```
 
-Then add this line to your rc file, open a new shell, and `wt help` should
-answer:
+This copies the repo to `~/.local/share/git-wt`. That path is only a
+convention — it is where user-installed programs keep their files on Linux and
+macOS — and any folder works. What matters is that **it is somewhere permanent**:
+Step 3 points your shell at this exact location, so moving or deleting the
+folder later will break `wt`.
+
+### Step 2 — find your shell's startup file
+
+Your shell runs one file every time it starts, so your settings survive between
+sessions. Which file depends on your shell and OS, and **picking the wrong one
+is the most common install failure** — it looks exactly like the tool being
+broken, because nothing errors, `wt` simply does not exist.
+
+| Your setup | File |
+|---|---|
+| zsh (default on macOS) | `~/.zshrc` |
+| bash on Linux | `~/.bashrc` |
+| bash on macOS | `~/.bash_profile` |
+
+Run `echo $SHELL` if you are unsure which shell you have. The bash-on-macOS case
+is the odd one: Terminal.app starts a *login* shell for every window, and login
+shells read `~/.bash_profile` and ignore `~/.bashrc` entirely.
+
+### Step 3 — add one line to that file
+
+The line tells your shell to load `wt` on startup. Append it with this command,
+replacing `~/.bashrc` with your file from Step 2:
+
+```bash
+echo '. "$HOME/.local/share/git-wt/wt.sh"' >> ~/.bashrc
+```
+
+Or open the file in any editor and paste this at the bottom:
 
 ```bash
 . "$HOME/.local/share/git-wt/wt.sh"
 ```
 
-Clone it somewhere permanent — the rc line points at the clone. Running
-`install.sh` is optional: it works out which rc file your shell actually reads
-and prints the line, or appends it with `--write-rc`.
+The leading `.` is the `source` command — it runs the file *inside* your current
+shell rather than in a separate process, which is what makes the `wt` function
+stick around afterwards. If you cloned somewhere other than Step 1's path, use
+your path here instead.
 
-**Which rc file?** Getting it wrong looks exactly like the tool being broken:
+### Step 4 — load it and check
 
-| Shell | File |
-|---|---|
-| zsh | `~/.zshrc` — every interactive shell, any OS |
-| bash on Linux | `~/.bashrc` |
-| bash on macOS | `~/.bash_profile` — Terminal.app opens a **login** shell per window, and login shells skip `~/.bashrc` |
+Your open terminal started before the line existed, so load it once by hand.
+Every terminal you open from now on does this automatically:
 
-Requires bash or zsh and git 2.17+. No other dependencies.
+```bash
+source ~/.bashrc
+wt help
+```
 
-**Not for native Windows.** `wt` is a bash/zsh function, so PowerShell and CMD
-cannot run it at all. On Windows use **WSL**, where this works unchanged — WSL is
-Linux, and it is the only Windows setup tested. Keep the repo on the WSL
-filesystem (`~/code/...`), not `/mnt/c/...`, where git and installs crawl.
+If `wt help` prints the command list, you are done. If you get
+`wt: command not found`, the line went into a file your shell does not read —
+go back to Step 2.
+
+### The installer script, optionally
+
+`./install.sh` does Steps 2 and 3 for you: it works out which startup file your
+shell actually reads and prints the line to add, or appends it for you with
+`--write-rc`. It is a convenience, not a requirement — it writes nothing unless
+you pass that flag.
+
+### Not for native Windows
+
+`wt` is a bash/zsh function, so PowerShell and CMD cannot run it at all. On
+Windows use **WSL**, where this works unchanged — WSL is Linux, and it is the
+only Windows setup tested. Keep the repo on the WSL filesystem (`~/code/...`),
+not `/mnt/c/...`, where git and installs crawl.
 
 This is a limit of the wrapper, not of worktrees. `git worktree add|list|remove`
 is native git and works fine in PowerShell — you just do the jumping and the
 `.env` copying yourself.
 
-**Why a shell function?** Jumping worktrees has to change the *calling* shell's
-directory, which no child process can do to its parent. The tradeoff: a function
-only exists in a shell that sourced it, so `wt` is unavailable in scripts and CI.
-For those, call the underlying scripts directly — same arguments:
+### Why a shell function?
+
+Jumping worktrees has to change the *calling* shell's directory, which no child
+process can do to its parent. The tradeoff: a function only exists in a shell
+that sourced it, so `wt` is unavailable in scripts and CI. For those, call the
+underlying scripts directly — same arguments:
 
 ```bash
 ~/.local/share/git-wt/lib/make-worktree.sh feat/checkout
@@ -106,7 +159,7 @@ For those, call the underlying scripts directly — same arguments:
 
 | | |
 |---|---|
-| `wt` / `wt ls` | list every worktree |
+| `wt` / `wt ls` / `wt list` | list every worktree |
 | `wt <substring>` | jump to the worktree whose branch or path matches |
 | `wt new <branch>` | create and initialise a worktree (alias: `create`) |
 | `wt new <branch> --no-install` | …without installing dependencies |

@@ -34,13 +34,19 @@ wt() {
   case "$cmd" in
     help | -h | --help)
       cat <<'HELP'
-wt / wt ls            list every worktree
-wt <substring>        jump to the worktree whose branch or path matches
-wt new <branch>       create and initialise a worktree (alias: create)
-wt clean [--whatif]   remove worktrees whose work has landed
-wt root               jump back to the main checkout
-wt path <substring>   print a worktree's path without jumping
-wt help               this
+wt / wt ls / wt list            list every worktree
+wt <substring>                  jump to the worktree whose branch or path matches
+wt new <branch>                 create and initialise a worktree (alias: create)
+wt new <branch> --no-install    ...without installing dependencies
+wt clean                        remove worktrees whose work has landed
+wt clean --whatif               preview it, change nothing (alias: --dry-run)
+wt clean --force                also remove dirty ones, discarding changes
+wt clean --days N               how recent a [gone] branch must be (default 7)
+wt root                         jump back to the main checkout
+wt path <substring>             print a worktree's path without jumping
+wt help                         this
+
+An ambiguous jump goes to the first match and prints the rest.
 
 Layout (auto-detected, override with WT_DIR or `git config wt.dir`):
   <repo>/.claude/worktrees/<branch>   when the repo has a .claude/ directory
