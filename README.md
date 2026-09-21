@@ -37,6 +37,11 @@ when either signal fires, because neither is enough alone:
 - **Ancestry** — `git merge-base --is-ancestor`, proof the commits are in the
   default branch. No age window needed.
 
+Ancestry has a blind spot: a branch with no commits is an ancestor of the
+default branch too, indistinguishable from one that really merged. The branch
+reflog separates them — one entry means the tip never moved — and such a
+branch is reported as *no commits of its own* and kept.
+
 Tools keying off `[gone]` alone do nothing in a repo that keeps merged branches.
 *Known limitation:* a **squash merge** defeats the ancestry check and never goes
 `[gone]`. There is no reliable signal for those; `wt clean` leaves them alone.
@@ -286,7 +291,3 @@ while a worktree holds it — so a stale worktree pins a stale branch, and
 | `WT_GONE_DAYS` | default for `clean --days` |
 
 `wt.dir` and `wt.layout` also work as `git config` keys, for per-repo settings.
-
-## License
-
-MIT

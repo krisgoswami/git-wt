@@ -4,7 +4,8 @@
 # remote dropped the branch ([gone]), or the branch tip is an ancestor of the
 # default branch. A team that does not delete branches on merge only ever
 # produces the second, and a branch that never tracked a remote can never
-# produce the first. Preview with --whatif first.
+# produce the first. A branch with no commits satisfies the second signal
+# without anything having landed, and is kept. Preview with --whatif first.
 set -euo pipefail
 
 _wt_self=$0
@@ -74,11 +75,23 @@ if [ -z "$DEFAULT_REF" ]; then
 fi
 DEFAULT_BRANCH=${DEFAULT_REF#origin/}
 
+# Ancestry cannot tell "merged" from "never committed on": both leave the tip
+# reachable from the default ref. The reflog can — it records every move of
+# the tip, so an untouched branch holds one entry, its creation. No reflog, no
+# answer: fall through to the old reading, since an empty branch costs nothing.
+branch_unstarted() {
+  local entries
+  entries=$(git reflog show "refs/heads/$1" 2> /dev/null | wc -l)
+  [ "$entries" -eq 1 ]
+}
+
 CUTOFF=$(( $(date +%s) - DAYS * 86400 ))
 
 echo ""
 echo "Worktrees whose work has landed:"
 SKIPPED_DIRTY=0
+UNSTARTED_WT=0
+UNSTARTED_BR=0
 FOUND=0
 # Feed the list in from a process substitution, not a pipe: a pipe would run
 # the loop in a subshell and the counters set inside it would not survive.
@@ -103,6 +116,11 @@ while read -r wt_path wt_branch; do
     fi
     reason="upstream gone"
   elif git merge-base --is-ancestor "$wt_branch" "$DEFAULT_REF" 2> /dev/null; then
+    if branch_unstarted "$wt_branch"; then
+      echo "  keeping $wt_branch (no commits of its own — never started, nothing has landed)"
+      UNSTARTED_WT=$((UNSTARTED_WT + 1))
+      continue
+    fi
     # Ancestry is proof the commits are in the default branch, so no age window
     # applies here. Note a SQUASH merge rewrites the commits and will not
     # satisfy this — such a branch is kept and must be judged by hand.
@@ -138,7 +156,7 @@ done < <(git worktree list --porcelain | awk '
   /^worktree /{p=substr($0,10)}
   /^branch /{sub("refs/heads/","",$2); print p, $2}')
 
-[ "$FOUND" -eq 0 ] && echo "  (none)"
+[ "$FOUND" -eq 0 ] && [ "$UNSTARTED_WT" -eq 0 ] && echo "  (none)"
 
 if [ "$SKIPPED_DIRTY" -gt 0 ]; then
   echo ""
@@ -154,6 +172,11 @@ for b in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
   case "$b" in main | master | develop | "$DEFAULT_BRANCH") continue ;; esac
   echo "$CHECKED_OUT" | grep -qxF "$b" && continue
   if git merge-base --is-ancestor "$b" "$DEFAULT_REF" 2> /dev/null; then
+    if branch_unstarted "$b"; then
+      echo "  keeping $b (no commits of its own — delete it by hand when done with it)"
+      UNSTARTED_BR=$((UNSTARTED_BR + 1))
+      continue
+    fi
     echo "  $b"
     FOUND_BRANCH=$((FOUND_BRANCH + 1))
     # -D is safe here and only here: ancestry already proved the commits are in
@@ -162,7 +185,14 @@ for b in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
     run git branch -D "$b"
   fi
 done
-[ "$FOUND_BRANCH" -eq 0 ] && echo "  (none)"
+[ "$FOUND_BRANCH" -eq 0 ] && [ "$UNSTARTED_BR" -eq 0 ] && echo "  (none)"
+
+UNSTARTED=$((UNSTARTED_WT + UNSTARTED_BR))
+if [ "$UNSTARTED" -gt 0 ]; then
+  echo ""
+  echo "  $UNSTARTED branch(es) kept because nothing was ever committed on them."
+  echo "  They are reachable from $DEFAULT_BRANCH only because they never moved."
+fi
 
 [ "$WHATIF" = true ] && echo "" && echo "(--whatif: nothing was changed)"
 echo "✓ done"
