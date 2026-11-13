@@ -43,6 +43,24 @@ for f in $WT_ENV_FILES; do
   fi
 done
 
+# --- 1b. Optional per-repo pre-install hook ---------------------------------
+# For files git does not carry but the lockfile needs to resolve, e.g. a
+# gitignored path dependency a repo script fetches. It has to run before the
+# install, which only warns on failure, so a missing input would otherwise
+# leave a worktree with no dependencies behind a "ready" message. Runs after
+# the env copy because fetch scripts often need credentials from .env, and
+# even with --no-install because it fetches files, it does not install.
+# The post-install hook (step 4) stays separate: hooks such as
+# `vercel env pull` need node_modules.
+REPO_NAME=$(basename "$MAIN_REPO_PATH")
+if PRE_HOOK=$(wt_hook_path "$REPO_NAME" "$WT_INSTALL_DIR" .pre.sh); then
+  echo "Running repo pre-install hook: $PRE_HOOK"
+  bash "$PRE_HOOK" || {
+    echo "Error: repo pre-install hook failed" >&2
+    exit 1
+  }
+fi
+
 # --- 2. Dependencies, detected from the lockfile rather than configured ------
 # Alternatives inside one ecosystem are first-match-wins; ecosystems are
 # independent, so a polyglot repo gets every one it needs. A missing tool is a
@@ -150,7 +168,6 @@ esac
 # --- 4. Optional per-repo extras --------------------------------------------
 # Kept outside the repo, so a repo you do not own stays untouched.
 # Named for the checkout directory; runs inside the new worktree.
-REPO_NAME=$(basename "$MAIN_REPO_PATH")
 if HOOK=$(wt_hook_path "$REPO_NAME" "$WT_INSTALL_DIR"); then
   echo "Running repo hook: $HOOK"
   bash "$HOOK" || {

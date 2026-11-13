@@ -243,7 +243,9 @@ git config wt.layout default         # force <repo>/.worktrees even with .claude
 3. Copies local-only files a fresh worktree can't have: `.env`, `.env.local`,
    `.env.development.local`, `.envrc`, `.tool-versions`. Never clobbers an
    existing file, never copies a tracked one. Override with `WT_ENV_FILES`.
-4. Installs dependencies, detected from lockfiles:
+4. Runs the per-repo pre-install hook (`<repo>.pre.sh`) if you have one, for
+   files the install needs that git doesn't carry. Runs even with `--no-install`.
+5. Installs dependencies, detected from lockfiles:
 
    | Ecosystem | Detected from | Runs |
    |---|---|---|
@@ -262,8 +264,8 @@ git config wt.layout default         # force <repo>/.worktrees even with .claude
    First match wins within an ecosystem; a polyglot repo gets each one. A tool
    not on `PATH` is skipped with a warning, and a failed install never fails the
    worktree. Skip with `--no-install` or `WT_NO_INSTALL=true`.
-5. Writes the exclude entries, then runs the per-repo hook if you have one — see
-   [`hooks/README.md`](hooks/README.md).
+6. Writes the exclude entries, then runs the per-repo hook (`<repo>.sh`) if you
+   have one. Both hooks are covered in [`hooks/README.md`](hooks/README.md).
 
 If `git worktree add` fails it prunes and rolls back, deleting the branch only if
 this run created it.

@@ -173,11 +173,18 @@ wt_check_branch_name() {
 # Per-repo hooks live OUTSIDE the repo, so a repo you do not own stays
 # untouched. User hooks come first; the ones shipped in the checkout are a
 # fallback, mainly so the repo can carry examples.
+#
+#   wt_hook_path <repo-name> <install-dir> [suffix]
+#
+# The suffix picks which hook: ".sh" (the default) is the post-install hook,
+# ".pre.sh" the pre-install one. Defaulting it keeps two-argument callers
+# working unchanged.
 wt_hook_path() {
   wt__repo_name=$1
   wt__install=$2
+  wt__suffix=${3:-.sh}
   wt__user_dir=${WT_HOOKS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/git-wt/hooks}
-  for wt__cand in "$wt__user_dir/$wt__repo_name.sh" "$wt__install/hooks/$wt__repo_name.sh"; do
+  for wt__cand in "$wt__user_dir/$wt__repo_name$wt__suffix" "$wt__install/hooks/$wt__repo_name$wt__suffix"; do
     if [ -f "$wt__cand" ]; then
       printf '%s\n' "$wt__cand"
       return 0
